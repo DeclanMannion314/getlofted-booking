@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="dashboard-page">
+
+<div class="site-header">
+  <a href="index.html" class="back-arrow" aria-label="Back">&larr;</a>
+  <img src="logo.png" alt="GG Pumped Floorscreed" class="site-logo">
+</div>
+
+<div id="loginBox">
+  <h2>Dashboard Login</h2>
+  <input type="password" id="passwordInput" placeholder="Enter password">
+  <button onclick="login()">Log In</button>
+  <p id="loginError" style="color: red;"></p>
+</div>
+
+<div id="dashboard" style="display:none;">
+  <h1>Job Dashboard</h1>
+
+  <div class="view-toggle">
+    <button id="listViewBtn" onclick="switchView('list')" class="active">Jobs</button>
+    <button id="calendarViewBtn" onclick="switchView('calendar')">Calendar</button>
+  </div>
+
+  <div id="listView">
+    <div id="jobsList"></div>
+  </div>
+
+  <div id="calendarView" style="display:none;">
+    <div class="calendar-header">
+      <button onclick="changeMonth(-1)">&laquo;</button>
+      <h2 id="calendarMonthLabel"></h2>
+      <button onclick="changeMonth(1)">&raquo;</button>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div id="selectedDayJobs"></div>
+  </div>
+</div>
+
+<script>
+let password = '';
+let allJobs = [];
+let currentView = 'list';
+let calendarDate = new Date();
+calendarDate.setDate(1);
+let selectedDay = null;
+
+async function login() {
+  password = document.getElementById('passwordInput').value;
+
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  const success = await loadJobs();
+
+  if (!success) {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'block';
+    document.getElementById('loginError').textContent = 'Incorrect password.';
+  }
+}
+
+async function loadJobs() {
+  const res = await fetch('/api/jobs?password=' + encodeURIComponent(password));
+
+  if (!res.ok) return false;
+
+  allJobs = await res.json();
+  renderCurrentView();
+  return true;
+}
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
+  document.getElementById('calendarViewBtn').classList.toggle('active', view === 'calendar');
+  document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
+  document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  if (currentView === 'list') {
+    renderJobsList();
+  } else {
+    renderCalendar();
+  }
+}
+
+function jobCardHtml(job) {
+  return `
+    <div class="job-card">
+      <div class="job-card-top">
+        <span class="job-type-badge">${job.placeType}</span>
+        <button class="delete-btn" onclick="deleteJob('${job.id}')">Delete</button>
+      </div>
+      <div class="job-name">${job.name}</div>
+      <div class="job-detail"><strong>Phone:</strong> ${job.phone}</div>
+      <div class="job-detail"><strong>Address:</strong> ${job.address}</div>
+      ${job.areaSize ? `<div class="job-detail"><strong>Area:</strong> ${job.areaSize} sq mtrs</div>` : ''}
+      ${job.depth ? `<div class="job-detail"><strong>Depth:</strong> ${job.depth} mm</div>` : ''}
+      ${job.cubicMeters ? `<div class="job-detail"><strong>Volume:</strong> ${job.cubicMeters} m³</div>` : ''}
+      <div class="job-detail"><strong>Preferred date:</strong> ${job.preferredDate}</div>
+      ${job.notes ? `<div class="job-detail"><strong>Notes:</strong> ${job.notes}</div>` : ''}
+
+      <div class="job-card-controls">
+        <div class="control-group">
+          <label>Status</label>
+          <select class="status-${job.status}" onchange="updateJob('${job.id}', { status: this.value })">
+            <option value="new" ${job.status === 'new' ? 'selected' : ''}>New</option>
+            <option value="contacted" ${job.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+            <option value="scheduled" ${job.status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+            <option value="done" ${job.status === 'done' ? 'selected' : ''}>Done</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Scheduled date</label>
+          <input type="date" ${job.scheduledDate ? `value="${job.scheduledDate}"` : ''} onchange="updateJob('${job.id}', { scheduledDate: this.value })">
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderJobsList() {
+  const container = document.getElementById('jobsList');
+  const sorted = [...allJobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (sorted.length === 0) {
+    container.innerHTML = '<p class="empty-message">No jobs yet.</p>';
+    return;
+  }
+
+  container.innerHTML = sorted.map(jobCardHtml).join('');
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+
+  document.getElementById('calendarMonthLabel').textContent =
+    calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  dayNames.forEach((d) => {
+    const header = document.createElement('div');
+    header.className = 'calendar-day-header';
+    header.textContent = d;
+    grid.appendChild(header);
+  });
+
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < startOffset; i++) {
+    grid.appendChild(document.createElement('div'));
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const jobsToday = allJobs.filter((j) => j.scheduledDate === cellDateStr);
+
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell' + (cellDateStr === selectedDay ? ' selected' : '');
+    cell.onclick = () => selectDay(cellDateStr);
+
+    cell.innerHTML = `
+      <div class="calendar-date">${day}</div>
+      ${jobsToday.length > 0 ? `<div class="calendar-dot">${jobsToday.length}</div>` : ''}
+    `;
+    grid.appendChild(cell);
+  }
+
+  renderSelectedDayJobs();
+}
+
+function selectDay(dateStr) {
+  selectedDay = selectedDay === dateStr ? null : dateStr;
+  renderCalendar();
+}
+
+function renderSelectedDayJobs() {
+  const container = document.getElementById('selectedDayJobs');
+
+  if (!selectedDay) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const jobsOnDay = allJobs.filter((j) => j.scheduledDate === selectedDay);
+  const label = new Date(selectedDay + 'T00:00:00').toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric'
+  });
+
+  if (jobsOnDay.length === 0) {
+    container.innerHTML = `<h3 class="selected-day-label">${label}</h3><p class="empty-message">No jobs scheduled.</p>`;
+    return;
+  }
+
+  container.innerHTML = `<h3 class="selected-day-label">${label}</h3>` + jobsOnDay.map(jobCardHtml).join('');
+}
+
+function changeMonth(offset) {
+  calendarDate.setMonth(calendarDate.getMonth() + offset);
+  selectedDay = null;
+  renderCalendar();
+}
+
+async function updateJob(id, updates) {
+  await fetch('/api/jobs/' + id, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-dashboard-password': password
+    },
+    body: JSON.stringify(updates)
+  });
+  loadJobs();
+}
+
+async function deleteJob(id) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+
+  await fetch('/api/jobs/' + id, {
+    method: 'DELETE',
+    headers: {
+      'x-dashboard-password': password
+    }
+  });
+  loadJobs();
+}
+</script>
+
+</body>
+</html>

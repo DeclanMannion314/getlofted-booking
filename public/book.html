@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book a Job - GG Pumped Floorscreeds</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="booking-page">
+
+<div class="site-header">
+  <a href="index.html" class="back-arrow" aria-label="Back">&larr;</a>
+  <img src="logo.png" alt="GG Pumped Floorscreed" class="site-logo">
+</div>
+
+<h1>Book a Job</h1>
+<p class="subtitle">Fill in the details below and we'll get back to you to confirm.</p>
+
+<form id="bookingForm">
+  <label for="name">Name</label>
+  <input type="text" id="name" required>
+
+  <label for="phone">Phone Number</label>
+  <input type="tel" id="phone" required>
+
+  <label for="placeType">Property Type</label>
+  <select id="placeType" required>
+    <option value="">Select...</option>
+    <option value="House">House</option>
+    <option value="Apartment">Apartment</option>
+    <option value="Deck">Deck</option>
+    <option value="Subfloor">Subfloor</option>
+    <option value="Raft">Raft</option>
+    <option value="Other">Other</option>
+  </select>
+
+  <label for="address">Eir Code</label>
+  <input type="text" id="address" required>
+
+  <label for="areaSize">Size of Area to Pour (sq mtrs)</label>
+  <input type="number" id="areaSize" min="0" step="0.1">
+
+  <label for="depth">Depth of Pour (mm)</label>
+  <input type="number" id="depth" min="0">
+
+  <div class="volume-toggle-row">
+    <label class="checkbox-label">
+      <input type="checkbox" id="knowsVolume">
+      I know the exact concrete volume needed (m³)
+    </label>
+  </div>
+
+  <div id="volumeField" style="display:none;">
+    <label for="cubicMeters">Concrete Volume (m³)</label>
+    <input type="number" id="cubicMeters" min="0" step="0.1">
+  </div>
+
+  <label for="preferredDate">Preferred Date</label>
+  <input type="date" id="preferredDate" required>
+
+  <label for="notes">Notes (optional)</label>
+  <textarea id="notes" rows="3"></textarea>
+
+  <button type="submit">Submit Request</button>
+</form>
+
+<p id="message"></p>
+
+<div id="popupOverlay" class="popup-overlay" style="display:none;">
+  <div class="popup-box">
+    <div id="popupIcon" class="popup-icon"></div>
+    <h2 id="popupTitle"></h2>
+    <p id="popupText"></p>
+    <button onclick="closePopup()">Close</button>
+  </div>
+</div>
+
+<script>
+const knowsVolumeCheckbox = document.getElementById('knowsVolume');
+const volumeField = document.getElementById('volumeField');
+
+knowsVolumeCheckbox.addEventListener('change', () => {
+  volumeField.style.display = knowsVolumeCheckbox.checked ? 'block' : 'none';
+});
+
+document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const data = {
+    name: document.getElementById('name').value,
+    phone: document.getElementById('phone').value,
+    placeType: document.getElementById('placeType').value,
+    address: document.getElementById('address').value,
+    areaSize: document.getElementById('areaSize').value,
+    depth: document.getElementById('depth').value,
+    cubicMeters: knowsVolumeCheckbox.checked ? document.getElementById('cubicMeters').value : '',
+    preferredDate: document.getElementById('preferredDate').value,
+    notes: document.getElementById('notes').value
+  };
+
+  try {
+    const res = await fetch('/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) throw new Error('Something went wrong.');
+
+    showPopup(true, 'Request Sent', "Thanks! We've received your booking and will be in touch to confirm.");
+    document.getElementById('bookingForm').reset();
+    volumeField.style.display = 'none';
+  } catch (err) {
+    showPopup(false, 'Something Went Wrong', 'Please try again, or call us directly.');
+  }
+});
+
+function showPopup(success, title, text) {
+  document.getElementById('popupIcon').textContent = success ? '✓' : '✕';
+  document.getElementById('popupIcon').className = 'popup-icon ' + (success ? 'popup-success' : 'popup-error');
+  document.getElementById('popupTitle').textContent = title;
+  document.getElementById('popupText').textContent = text;
+  document.getElementById('popupOverlay').style.display = 'flex';
+}
+
+function closePopup() {
+  document.getElementById('popupOverlay').style.display = 'none';
+}
+</script>
+
+</body>
+</html>
