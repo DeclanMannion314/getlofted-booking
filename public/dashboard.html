@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Job Dashboard</title>
+<title>Dashboard - Get Lofted Property Services</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="dashboard-page">
 
 <div class="site-header">
   <a href="index.html" class="back-arrow" aria-label="Back">&larr;</a>
-  <img src="logo.png" alt="GG Pumped Floorscreed" class="site-logo">
+  <img src="logo.png" alt="Get Lofted Property Services" class="site-logo">
 </div>
 
 <div id="loginBox">
@@ -50,6 +50,16 @@ let currentView = 'list';
 let calendarDate = new Date();
 calendarDate.setDate(1);
 let selectedDay = null;
+
+// Escapes text so anything a customer types can't break the page
+function esc(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 async function login() {
   password = document.getElementById('passwordInput').value;
@@ -97,22 +107,20 @@ function jobCardHtml(job) {
   return `
     <div class="job-card">
       <div class="job-card-top">
-        <span class="job-type-badge">${job.placeType}</span>
-        <button class="delete-btn" onclick="deleteJob('${job.id}')">Delete</button>
+        <span class="job-type-badge">${esc(job.typeOfWork)}</span>
+        <button class="delete-btn" onclick="deleteJob('${esc(job.id)}')">Delete</button>
       </div>
-      <div class="job-name">${job.name}</div>
-      <div class="job-detail"><strong>Phone:</strong> ${job.phone}</div>
-      <div class="job-detail"><strong>Address:</strong> ${job.address}</div>
-      ${job.areaSize ? `<div class="job-detail"><strong>Area:</strong> ${job.areaSize} sq mtrs</div>` : ''}
-      ${job.depth ? `<div class="job-detail"><strong>Depth:</strong> ${job.depth} mm</div>` : ''}
-      ${job.cubicMeters ? `<div class="job-detail"><strong>Volume:</strong> ${job.cubicMeters} m³</div>` : ''}
-      <div class="job-detail"><strong>Preferred date:</strong> ${job.preferredDate}</div>
-      ${job.notes ? `<div class="job-detail"><strong>Notes:</strong> ${job.notes}</div>` : ''}
+      <div class="job-name">${esc(job.name)}</div>
+      <div class="job-detail"><strong>Phone:</strong> ${esc(job.phone)}</div>
+      <div class="job-detail"><strong>Address:</strong> ${esc(job.address)}</div>
+      <div class="job-detail"><strong>Urgency:</strong> ${esc(job.urgency)}</div>
+      <div class="job-detail"><strong>Job:</strong> ${esc(job.description)}</div>
+      ${job.preferredDate ? `<div class="job-detail"><strong>Preferred date:</strong> ${esc(job.preferredDate)}</div>` : ''}
 
       <div class="job-card-controls">
         <div class="control-group">
           <label>Status</label>
-          <select class="status-${job.status}" onchange="updateJob('${job.id}', { status: this.value })">
+          <select class="status-${esc(job.status)}" onchange="updateJob('${esc(job.id)}', { status: this.value })">
             <option value="new" ${job.status === 'new' ? 'selected' : ''}>New</option>
             <option value="contacted" ${job.status === 'contacted' ? 'selected' : ''}>Contacted</option>
             <option value="scheduled" ${job.status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
@@ -121,7 +129,7 @@ function jobCardHtml(job) {
         </div>
         <div class="control-group">
           <label>Scheduled date</label>
-          <input type="date" ${job.scheduledDate ? `value="${job.scheduledDate}"` : ''} onchange="updateJob('${job.id}', { scheduledDate: this.value })">
+          <input type="date" ${job.scheduledDate ? `value="${esc(job.scheduledDate)}"` : ''} onchange="updateJob('${esc(job.id)}', { scheduledDate: this.value })">
         </div>
       </div>
     </div>

@@ -18,7 +18,7 @@ let jobsCollection;
 
 async function connectDB() {
   await client.connect();
-  const db = client.db('booking-app');
+  const db = client.db(process.env.DB_NAME || 'getlofted-bookings');
   jobsCollection = db.collection('jobs');
   console.log('Connected to MongoDB');
 }
@@ -35,23 +35,26 @@ const transporter = nodemailer.createTransport({
 });
 
 function sendJobEmail(job) {
-  const notifyEmail = process.env.NOTIFY_EMAIL || 'ggfloorscreed@gmail.com';
+  const notifyEmail = process.env.NOTIFY_EMAIL;
+
+  if (!notifyEmail) {
+    console.log('NOTIFY_EMAIL not set, skipping email (job was still saved).');
+    return;
+  }
 
   const mailOptions = {
     from: process.env.SMTP_USER || 'noreply@example.com',
     to: notifyEmail,
-    subject: `New job request: ${job.placeType} - ${job.name}`,
+    subject: `New job request: ${job.typeOfWork} - ${job.name}`,
     text:
       `New job request submitted\n\n` +
       `Name: ${job.name}\n` +
       `Phone: ${job.phone}\n` +
-      `Property type: ${job.placeType}\n` +
-      `Site address: ${job.address}\n` +
-      `Area size: ${job.areaSize || 'Not specified'} sq mtrs\n` +
-      `Depth of pour: ${job.depth || 'Not specified'} mm\n` +
-      `Concrete volume: ${job.cubicMeters || 'Not specified'} m³\n` +
-      `Preferred date: ${job.preferredDate}\n` +
-      `Notes: ${job.notes || 'None'}\n`
+      `Address: ${job.address}\n` +
+      `Type of work: ${job.typeOfWork}\n` +
+      `Urgency: ${job.urgency}\n` +
+      `Preferred date: ${job.preferredDate || 'Not specified'}\n\n` +
+      `Job description:\n${job.description}\n`
   };
 
   transporter.sendMail(mailOptions).catch((err) => {
@@ -62,9 +65,9 @@ function sendJobEmail(job) {
 // --- Routes ---
 
 app.post('/api/jobs', async (req, res) => {
-  const { name, phone, placeType, address, areaSize, depth, cubicMeters, preferredDate, notes } = req.body;
+  const { name, phone, address, typeOfWork, description, urgency, preferredDate } = req.body;
 
-  if (!name || !phone || !placeType || !address || !preferredDate) {
+  if (!name || !phone || !address || !typeOfWork || !description || !urgency) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
@@ -72,13 +75,11 @@ app.post('/api/jobs', async (req, res) => {
     id: Date.now().toString(),
     name,
     phone,
-    placeType,
     address,
-    areaSize: areaSize || '',
-    depth: depth || '',
-    cubicMeters: cubicMeters || '',
-    preferredDate,
-    notes: notes || '',
+    typeOfWork,
+    description,
+    urgency,
+    preferredDate: preferredDate || '',
     status: 'new',
     scheduledDate: '',
     createdAt: new Date().toISOString()
